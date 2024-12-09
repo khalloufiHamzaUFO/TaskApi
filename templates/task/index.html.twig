@@ -1,20 +1,48 @@
-{% extends 'base.html.twig' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Task Manager</title>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Task Manager</h1>
+    <a href="{{ path('task_create') }}" class="btn btn-primary mb-3">Add New Task</a>
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+            <tr>
+                <td>{{ task.id }}</td>
+                <td>{{ task.title }}</td>
+                <td>{{ task.description }}</td>
+                <td>{{ task.status }}</td>
+                <td>
+                    <a href="{{ path('task_edit', { id: task.id }) }}" class="btn btn-warning btn-sm">Edit</a>
+                    <form action="{{ path('task_delete', { id: task.id }) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
 
-{% block title %}Hello TaskController!{% endblock %}
-
-{% block body %}
-<style>
-    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
-    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
-</style>
-
-<div class="example-wrapper">
-    <h1>Hello {{ controller_name }}! ✅</h1>
-
-    This friendly message is coming from:
-    <ul>
-        <li>Your controller at <code>C:/Users/hamza/my_project/src/Controller/TaskController.php</code></li>
-        <li>Your template at <code>C:/Users/hamza/my_project/templates/task/index.html.twig</code></li>
-    </ul>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5" class="text-center">No tasks found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 </div>
-{% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

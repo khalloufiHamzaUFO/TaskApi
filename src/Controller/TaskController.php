@@ -6,100 +6,104 @@ use App\Entity\Task;
 use App\Repository\TaskRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 class TaskController extends AbstractController
 {
-    // Endpoint: POST /tasks - Créer une tâche
-    #[Route('/tasks', name: 'create_task', methods: ['POST'])]
-    public function create(Request $request, EntityManagerInterface $em): JsonResponse
+    // Endpoint: GET /tasks - Page pour lister toutes les tâches
+    #[Route('/tasks', name: 'task_index', methods: ['GET'])]
+    public function index(TaskRepository $taskRepository): Response
     {
-        $data = json_decode($request->getContent(), true);
+        $tasks = $taskRepository->findAll();
 
-        if (!isset($data['title']) || empty($data['title'])) {
-            return new JsonResponse(['error' => 'Title is required'], JsonResponse::HTTP_BAD_REQUEST);
+        return $this->render('task/index.html.twig', [
+            'tasks' => $tasks,
+        ]);
+    }
+
+    // Endpoint: GET /tasks/create - Formulaire pour ajouter une nouvelle tâche
+    #[Route('/tasks/create', name: 'task_create', methods: ['GET'])]
+    public function create(): Response
+    {
+        return $this->render('task/create.html.twig');
+    }
+
+    // Endpoint: POST /tasks - Créer une nouvelle tâche (soumission du formulaire)
+    #[Route('/tasks', name: 'task_store', methods: ['POST'])]
+    public function store(Request $request, EntityManagerInterface $em): Response
+    {
+        $title = $request->request->get('title');
+        $description = $request->request->get('description');
+        $status = $request->request->get('status', 'pending');
+
+        if (empty($title)) {
+            $this->addFlash('error', 'Title is required.');
+            return $this->redirectToRoute('task_create');
         }
 
         $task = new Task();
-        $task->setTitle($data['title']);
-        $task->setDescription($data['description'] ?? null);
-        $task->setStatus($data['status'] ?? 'pending');
+        $task->setTitle($title);
+        $task->setDescription($description);
+        $task->setStatus($status);
 
         $em->persist($task);
         $em->flush();
 
-        return new JsonResponse(['message' => 'Task created successfully', 'task' => [
-            'id' => $task->getId(),
-            'title' => $task->getTitle(),
-            'description' => $task->getDescription(),
-            'status' => $task->getStatus(),
-        ]], JsonResponse::HTTP_CREATED);
+        $this->addFlash('success', 'Task created successfully.');
+        return $this->redirectToRoute('task_index');
     }
 
-    // Endpoint: GET /tasks - Lister toutes les tâches
-    #[Route('/tasks', name: 'get_tasks', methods: ['GET'])]
-    public function index(TaskRepository $taskRepository): JsonResponse
-    {
-        $tasks = $taskRepository->findAll();
-
-        $data = array_map(function ($task) {
-            return [
-                'id' => $task->getId(),
-                'title' => $task->getTitle(),
-                'description' => $task->getDescription(),
-                'status' => $task->getStatus(),
-            ];
-        }, $tasks);
-
-        return new JsonResponse($data, JsonResponse::HTTP_OK);
-    }
-
-    // Endpoint: PUT /tasks/{id} - Mettre à jour une tâche spécifique
-    #[Route('/tasks/{id}', name: 'update_task', methods: ['PUT'])]
-    public function update($id, Request $request, TaskRepository $taskRepository, EntityManagerInterface $em): JsonResponse
+    // Endpoint: GET /tasks/{id}/edit - Formulaire pour modifier une tâche existante
+    #[Route('/tasks/{id}/edit', name: 'task_edit', methods: ['GET'])]
+    public function edit($id, TaskRepository $taskRepository): Response
     {
         $task = $taskRepository->find($id);
 
         if (!$task) {
-            return new JsonResponse(['error' => 'Task not found'], JsonResponse::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Task not found');
         }
 
-        $data = json_decode($request->getContent(), true);
-        if (isset($data['status']) && !empty($data['status'])) {
-            $task->setStatus($data['status']);
+        return $this->render('task/edit.html.twig', [
+            'task' => $task,
+        ]);
+    }
+
+    // Endpoint: POST /tasks/{id} - Mettre à jour une tâche (soumission du formulaire)
+    #[Route('/tasks/{id}', name: 'task_update', methods: ['POST'])]
+    public function update($id, Request $request, TaskRepository $taskRepository, EntityManagerInterface $em): Response
+    {
+        $task = $taskRepository->find($id);
+
+        if (!$task) {
+            throw $this->createNotFoundException('Task not found');
         }
-        if (isset($data['title'])) {
-            $task->setTitle($data['title']);
-        }
-        if (isset($data['description'])) {
-            $task->setDescription($data['description']);
-        }
+
+        $task->setTitle($request->request->get('title', $task->getTitle()));
+        $task->setDescription($request->request->get('description', $task->getDescription()));
+        $task->setStatus($request->request->get('status', $task->getStatus()));
 
         $em->flush();
 
-        return new JsonResponse(['message' => 'Task updated successfully', 'task' => [
-            'id' => $task->getId(),
-            'title' => $task->getTitle(),
-            'description' => $task->getDescription(),
-            'status' => $task->getStatus(),
-        ]], JsonResponse::HTTP_OK);
+        $this->addFlash('success', 'Task updated successfully.');
+        return $this->redirectToRoute('task_index');
     }
 
-    // Endpoint: DELETE /tasks/{id} - Supprimer une tâche
-    #[Route('/tasks/{id}', name: 'delete_task', methods: ['DELETE'])]
-    public function delete($id, TaskRepository $taskRepository, EntityManagerInterface $em): JsonResponse
+    // Endpoint: POST /tasks/{id}/delete - Supprimer une tâche
+    #[Route('/tasks/{id}/delete', name: 'task_delete', methods: ['POST'])]
+    public function delete($id, TaskRepository $taskRepository, EntityManagerInterface $em): Response
     {
         $task = $taskRepository->find($id);
 
         if (!$task) {
-            return new JsonResponse(['error' => 'Task not found'], JsonResponse::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Task not found');
         }
 
         $em->remove($task);
         $em->flush();
 
-        return new JsonResponse(['message' => 'Task deleted successfully'], JsonResponse::HTTP_OK);
+        $this->addFlash('success', 'Task deleted successfully.');
+        return $this->redirectToRoute('task_index');
     }
 }
